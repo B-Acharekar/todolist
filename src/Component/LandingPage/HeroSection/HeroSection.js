@@ -13,7 +13,7 @@ const HeroSection = ({image = []}) => {
                     Our intuitive, sleek to-do list app helps you focus on what matters. Designed for simplicity, productivity, and growth.
                 </p>
                 <div className="space-x-4">
-                    <Link>
+                    <Link to="/home">
                     <button className="px-10 py-3 mt-6 bg-gradient-to-r from-purple-200 to-fuchsia-200 text-purple-800 rounded-full shadow-xl transform hover:scale-105 transition duration-200 ease-out">
                         Get Started for Free
                     </button>
