@@ -1,22 +1,37 @@
+// Home.js
 import React, { useState } from "react";
 import Sidebar from "./Sidebar/Sidebar";
+import Topbar from "./Topbar/Topbar";
+import MainContent from "./MainContent/MainContent";
 
 const Home = () => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
     return (
-        <div className="w-full min-h-screen">
-            <button
-                className="ms-2 pt-6 p-2 text-white dark:text-purple-700 rounded-md z-50"
-                onClick={toggleSidebar}
-            >
-                <i className="bi bi-layout-sidebar text-2xl"></i>
-            </button>
-            <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+        <div className="w-full min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+            {/* Topbar */}
+            <Topbar toggleSidebar={toggleSidebar} />
+
+            {/* Layout containing Sidebar and MainContent */}
+            <div className="flex w-full">
+                {/* Sidebar */}
+                <div
+                    className={`${
+                        isSidebarOpen ? "w-64" : "w-0"
+                    } transition-width duration-300`}
+                >
+                    <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-grow transition-all duration-300">
+                    <MainContent />
+                </div>
+            </div>
         </div>
     );
 };
