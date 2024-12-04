@@ -5,20 +5,40 @@ const MainContent = () => {
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskDescription, setNewTaskDescription] = useState("");
     const [newTaskDueDate, setNewTaskDueDate] = useState("");
-    const [newTaskPriority, setNewTaskPriority] = useState("Medium");  // Default priority
+    const [newTaskPriority, setNewTaskPriority] = useState("Medium");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [sortCriteria, setSortCriteria] = useState("priority");  // New state for sorting criteria
+    const [sortCriteria, setSortCriteria] = useState("priority");
+
+    // Get JWT token from localStorage or sessionStorage
+    const token = localStorage.getItem('jwt_token'); // or sessionStorage
+    console.log(token);
+
 
     // Fetch tasks from backend
     useEffect(() => {
         const fetchTasks = async () => {
             setLoading(true);
             try {
-                const response = await fetch("http://127.0.0.1:5000/tasks");
+                const response = await fetch("http://127.0.0.1:5000/tasks", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                });
                 if (!response.ok) throw new Error("Failed to fetch tasks");
                 const data = await response.json();
-                setTasks(data.tasks); // Assuming API response structure
+                const validatedData = Array.isArray(data)
+                    ? data.map(task => ({
+                          ...task,
+                          completed: task.completed || false,
+                          title: task.title || "Untitled Task",
+                          priority: task.priority || "Medium",
+                          due_date: task.due_date || null,
+                          description: task.description || "",
+                      }))
+                    : [];
+
+                setTasks(validatedData);
             } catch (error) {
                 setError("Unable to load tasks. Please try again later.");
             } finally {
@@ -26,7 +46,7 @@ const MainContent = () => {
             }
         };
         fetchTasks();
-    }, []);
+    }, [token]);
 
     // Add a new task
     const addTask = async () => {
@@ -42,22 +62,35 @@ const MainContent = () => {
         try {
             const response = await fetch("http://127.0.0.1:5000/tasks", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,  // Pass JWT token
+                },
                 body: JSON.stringify({
                     title: newTaskTitle,
                     description: newTaskDescription,
                     due_date: newTaskDueDate,
-                    priority: newTaskPriority
+                    priority: newTaskPriority,
                 }),
             });
             if (!response.ok) throw new Error("Failed to add task");
+
             const data = await response.json();
-            setTasks([...tasks, data.task]);
+            const newTask = {
+                id: data.task_id,
+                title: newTaskTitle,
+                description: newTaskDescription,
+                due_date: newTaskDueDate,
+                priority: newTaskPriority,
+                completed: false,
+            };
+
+            setTasks((prevTasks) => [...prevTasks, newTask]);
             setNewTaskTitle("");
             setNewTaskDescription("");
             setNewTaskDueDate("");
             setNewTaskPriority("Medium");
-            setError(null); // Clear any previous errors
+            setError(null);
         } catch (error) {
             setError("Failed to add the task. Please try again.");
         }
@@ -68,6 +101,9 @@ const MainContent = () => {
         try {
             const response = await fetch(`http://127.0.0.1:5000/tasks/${taskId}`, {
                 method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`,  // Pass JWT token
+                },
             });
             if (!response.ok) throw new Error("Failed to delete task");
             setTasks(tasks.filter((task) => task.id !== taskId));
@@ -81,7 +117,10 @@ const MainContent = () => {
         try {
             const response = await fetch(`http://127.0.0.1:5000/tasks/${taskId}`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,  // Pass JWT token
+                },
                 body: JSON.stringify({ completed: !currentStatus }),
             });
             if (!response.ok) throw new Error("Failed to update task");
@@ -96,12 +135,12 @@ const MainContent = () => {
     };
 
     // Sort tasks based on the selected criteria
-    const sortedTasks = tasks.sort((a, b) => {
+    const sortedTasks = (tasks || []).sort((a, b) => {
         if (sortCriteria === "priority") {
-            return a.priority.localeCompare(b.priority); // Sorting by priority
+            return a.priority?.localeCompare(b.priority) || 0;
         }
         if (sortCriteria === "due_date") {
-            return new Date(a.due_date) - new Date(b.due_date); // Sorting by due date
+            return new Date(a.due_date || 0) - new Date(b.due_date || 0);
         }
         return 0;
     });
@@ -168,36 +207,51 @@ const MainContent = () => {
                 <div className="text-center py-4">Loading tasks...</div>
             ) : (
                 <ul>
-                    {sortedTasks.map((task) => (
-                        <li
-                            key={task.id}
-                            className={`p-4 mb-2 rounded shadow flex justify-between items-center ${task.completed ? "bg-green-100 dark:bg-green-800" : "bg-white dark:bg-gray-800"}`}
-                        >
-                            <div>
-                                <h3 className="font-semibold">
-                                    {task.title}
-                                    {task.completed && <span className="text-sm text-green-600 ml-2">(Completed)</span>}
-                                </h3>
-                                <p className="text-sm text-gray-500">Due: {task.due_date}</p>
-                                <p className="text-sm text-gray-600">Priority: {task.priority}</p>
-                                <p className="text-sm text-gray-500">Description: {task.description}</p>
-                            </div>
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={() => toggleCompletion(task.id, task.completed)}
-                                    className={`px-3 py-1 rounded ${task.completed ? "bg-gray-400 text-white" : "bg-green-500 text-white"}`}
-                                >
-                                    {task.completed ? "Undo" : "Complete"}
-                                </button>
-                                <button
-                                    onClick={() => deleteTask(task.id)}
-                                    className="text-red-500"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </li>
-                    ))}
+                    {sortedTasks.map((task) => {
+                        if (!task) return null;
+                        const {
+                            id,
+                            title = "Untitled Task",
+                            description = "No description",
+                            due_date = "No due date",
+                            priority = "Medium",
+                            completed = false,
+                        } = task;
+                        return (
+                            <li
+                                key={id}
+                                className={`p-4 mb-2 rounded shadow flex justify-between items-center ${
+                                    completed ? "bg-green-100 dark:bg-green-800" : "bg-white dark:bg-gray-800"
+                                }`}
+                            >
+                                <div>
+                                    <h3 className="font-semibold">
+                                        {title}
+                                        {completed && <span className="text-sm text-green-600 ml-2">(Completed)</span>}
+                                    </h3>
+                                    <p className="text-sm text-gray-500">Due: {due_date}</p>
+                                    <p className="text-sm text-gray-600">Priority: {priority}</p>
+                                    <p className="text-sm text-gray-500">Description: {description}</p>
+                                </div>
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={() => toggleCompletion(id, completed)}
+                                        className={`px-3 py-1 rounded ${
+                                            completed ? "bg-gray-500" : "bg-green-500"
+                                        } text-white`}
+                                    >
+                                        {completed ? "Undo" : "Complete"}
+                                    </button>
+                                    <button
+                                        onClick={() => deleteTask(id)}
+                                        className="bg-red-500 px-3 py-1 rounded text-white"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </li>
+                        );
+                    })}
                 </ul>
             )}
         </div>
